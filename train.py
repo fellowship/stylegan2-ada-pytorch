@@ -505,6 +505,11 @@ class CommaSeparatedList(click.ParamType):
 @click.option('--allow-tf32', help='Allow PyTorch to use TF32 internally', type=bool, metavar='BOOL')
 @click.option('--workers', help='Override number of DataLoader workers', type=int, metavar='INT')
 
+# Added options
+@click.option('--ema', help='Exp moving average half life', type=float, metavar='FLOAT')
+@click.option('--map_layers', help='Number of map layers ', type=int, metavar='INT')
+@click.option('--ema', help='EMA ramp up coefficient', type=float, metavar='FLOAT')
+
 def main(ctx, outdir, dry_run, **config_kwargs):
     """Train a GAN using the techniques described in the paper
     "Training Generative Adversarial Networks with Limited Data".
