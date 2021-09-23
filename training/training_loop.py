@@ -23,7 +23,7 @@ from torch_utils.ops import grid_sample_gradfix
 
 import legacy
 from metrics import metric_main
-
+from tqdm import tqdm
 #----------------------------------------------------------------------------
 
 def setup_snapshot_image_grid(training_set, random_seed=0):
@@ -257,6 +257,8 @@ def training_loop(
     batch_idx = 0
     if progress_fn is not None:
         progress_fn(0, total_kimg)
+    else:
+        pbar = tqdm(total=total_kimg*1000)
     while True:
 
         # Fetch training data.
@@ -410,13 +412,16 @@ def training_loop(
             stats_tfevents.flush()
         if progress_fn is not None:
             progress_fn(cur_nimg // 1000, total_kimg)
-
+        else:
+            pbar.update(cur_nimg)
         # Update state.
         cur_tick += 1
         tick_start_nimg = cur_nimg
         tick_start_time = time.time()
         maintenance_time = tick_start_time - tick_end_time
         if done:
+            if progress_fn is None:
+                pbar.close()
             break
 
     # Done.
