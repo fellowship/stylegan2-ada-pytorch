@@ -69,6 +69,12 @@ def setup_training_loop_kwargs(
     allow_tf32 = None, # Allow PyTorch to use TF32 for matmul and convolutions: <bool>, default = False
     nobench    = None, # Disable cuDNN benchmarking: <bool>, default = False
     workers    = None, # Override number of DataLoader workers: <int>, default = 3
+
+    # Additional cfg
+    map_layers=None,  # number of map layers
+    ema=None, # Half-life of the exponential moving average (EMA) of generator weights.
+    ramp=None,# EMA ramp-up coefficient.
+
 ):
     args = dnnlib.EasyDict()
 
@@ -112,6 +118,7 @@ def setup_training_loop_kwargs(
     args.training_set_kwargs = dnnlib.EasyDict(class_name='training.dataset.ImageFolderDataset', path=data, use_labels=True, max_size=None, xflip=False)
     args.data_loader_kwargs = dnnlib.EasyDict(pin_memory=True, num_workers=3, prefetch_factor=2)
     try:
+        print("asadds")
         training_set = dnnlib.util.construct_class_by_name(**args.training_set_kwargs) # subclass of training.dataset.Dataset
         args.training_set_kwargs.resolution = training_set.resolution # be explicit about resolution
         args.training_set_kwargs.use_labels = training_set.has_labels # be explicit about labels
@@ -164,7 +171,7 @@ def setup_training_loop_kwargs(
     desc += f'-{cfg}'
 
     cfg_specs = {
-        'auto':          dict(ref_gpus=-1, kimg=25000,  mb=-1, mbstd=-1, fmaps=-1,  lrate=-1,     gamma=-1,   ema=-1,  ramp=0.05, map=2), # populated dynamically based on 'gpus' and 'res'
+        'auto':          dict(ref_gpus=-1, kimg=25000,  mb=-1, mbstd=-1, fmaps=-1,  lrate=-1,     gamma=-1,   ema=-1,  ramp=0.05, map=8), # populated dynamically based on 'gpus' and 'res'
         'aydao':     dict(ref_gpus=2,  kimg=25000,  mb=16, mbstd=8,  fmaps=1,   lrate=0.002,  gamma=10,   ema=10,  ramp=None, map=8), # uses mixed-precision, 11GB GPU
         '11gb-gpu':     dict(ref_gpus=1,  kimg=25000,  mb=4, mbstd=4,  fmaps=1,   lrate=0.002,  gamma=10,   ema=10,  ramp=None, map=8), # uses mixed-precision, 11GB GPU
         '11gb-gpu-complex':     dict(ref_gpus=1,  kimg=25000,  mb=4, mbstd=4,  fmaps=1,   lrate=0.002,  gamma=10,   ema=10,  ramp=None, map=8), # uses mixed-precision, 11GB GPU
@@ -197,6 +204,24 @@ def setup_training_loop_kwargs(
     if lrate is not None:
         assert isinstance(lrate, float)
         spec.lrate = lrate
+
+    if map_layers is not None:
+        assert isinstance(map_layers, int)
+        if not map_layers >= 0:
+            raise UserError('--map_layers must be nonnegative')
+        spec.map = map_layers
+
+    if ema is not None:
+        assert isinstance(ema, float)
+        if not ema >= 0:
+            raise UserError('--ema must be nonnegative')
+        spec.ema = ema
+
+    if ramp is not None:
+        assert isinstance(ramp, float)
+        if not ramp >= 0:
+            raise UserError('--ramp must be nonnegative')
+        spec.ramp = ramp
 
     args.G_kwargs = dnnlib.EasyDict(class_name='training.networks.Generator', z_dim=512, w_dim=512, mapping_kwargs=dnnlib.EasyDict(), synthesis_kwargs=dnnlib.EasyDict())
     args.D_kwargs = dnnlib.EasyDict(class_name='training.networks.Discriminator', block_kwargs=dnnlib.EasyDict(), mapping_kwargs=dnnlib.EasyDict(), epilogue_kwargs=dnnlib.EasyDict())
@@ -394,6 +419,7 @@ def setup_training_loop_kwargs(
         if not workers >= 1:
             raise UserError('--workers must be at least 1')
         args.data_loader_kwargs.num_workers = workers
+
 
     return desc, args
 
